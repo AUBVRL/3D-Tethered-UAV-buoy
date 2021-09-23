@@ -16,6 +16,8 @@ T_init = 10;            % time before velocity control starts (s)
 %       fully developped, H =3.3  m, T = 8.0 s
 % Wiki: fully developped, H =4.1  m, T = 8.6 s
 % Wiki: Interpolate: H =2 m, T = 6.3 s
+
+water.rho = 1000;   % water density (kg/m3)
 water.nu = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
 water.H = 10;               % mean water level (m)
 
@@ -41,7 +43,6 @@ current.v = current.total*sin(current.beta);
 %% floating buoy: two cylinder shape buoys rigidly connected
 % the 2 cylinder structure maitain the stability of the buoy
 % and prevent roll motion
-rho_w = 1000;   % water density (kg/m3)
 
 % Cylinder:
 % R_b = 0.1;             % buoy radius (m), cylinder
@@ -66,10 +67,10 @@ buoy.A = buoy.h^2;           % (m^2)
 buoy.l = 0.8;             % buoy length (m)
 buoy.Vol = buoy.A*buoy.l;       % buoy volume (m)
 % for the buoy to be half immersed:
-buoy.m = rho_w*buoy.Vol/4;   % buoy mass (kg)
+buoy.m = water.rho*buoy.Vol/4;   % buoy mass (kg)
 buoy.J = [buoy.m*buoy.h^2/12, buoy.m*buoy.h*buoy.l/12, buoy.m*buoy.h*buoy.l/12 ]; % buoy moment of inertia [kg.m2]
 
-buoy.A_im = (buoy.m)/rho_w/buoy.l; % immersed frontal area (m^2) (different from whetted area)
+buoy.A_im = (buoy.m)/water.rho/buoy.l; % immersed frontal area (m^2) (different from whetted area)
 buoy.Delta_h = (buoy.A_im/buoy.A-0.5)*buoy.h; % z_b-zeta, buoy center above water surface 
 
 % u_s1_x = cos(wave1.psi)*wave1.A^2*wave1.omega*wave1.k*exp(2*wave1.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
@@ -81,13 +82,13 @@ buoy.Delta_h = (buoy.A_im/buoy.A-0.5)*buoy.h; % z_b-zeta, buoy center above wate
 %u_s = cos(wave.psi).*wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-buoy.Delta_h/2)); % stocks drift (m/s)
 %v_s = sin(wave.psi).*wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-buoy.Delta_h/2)); % stocks drift (m/s)
 
-buoy.X0 = [0,0,water.H-buoy.Delta_h];
+buoy.X0 = [0;0;water.H-buoy.Delta_h];
 % buoy initial velocity simillar as local wave velocity
 wave.u0 = cos(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon);
 wave.v0 = sin(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon);
 wave.w0 =                wave.omega.*wave.A.*cos(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon); 
 
-buoy.V0 = [current.u+wave.u0,current.v+wave.v0, wave.w0].*[1 1 1]; % check for correctness (body frame or inertial frame?)
+buoy.V0 = [current.u+wave.u0;current.v+wave.v0; wave.w0].*[1 1 1]; % check for correctness (body frame or inertial frame?)
 
 %Cd_f =3; % drag
 %drag_wave = 0.3; % wave lateral drag force (N)
@@ -103,7 +104,7 @@ buoy.b_33 = 2*buoy.m*omega_h;
 C_S = [5;5;9]*10^-3;       % skin friction constant
 D_s = [4;4;0.3*3];         % sfkin friction coefficient (viscous)
 D_x = buoy.b_11 + D_s(1);     % total drag coefficient
-D_x = buoy.b_22 + D_s(2);    
+D_y = buoy.b_22 + D_s(2);    
 D_z = buoy.b_33 + D_s(3);
 
 %% Cable:
@@ -112,6 +113,7 @@ cable.dL_max = 0.0;            % maximum cable elongation (m)
 cable.T_max = 80;              % max cable tension (N)
 cable.Kc = cable.T_max/cable.dL_max;       % Cable spring constant (N/m)
 
+%% UAV spherical coordinates
 uav.alpha_bar_0 = 45*(pi/180);
 %zq_bar = X0_b(2) + Lc_0*tan(alpha_bar_0)*sqrt(1-cos(alpha_bar_0)^2)
 uav.z_bar = buoy.X0(3) + cable.L_0*sin(uav.alpha_bar_0);
@@ -119,32 +121,18 @@ uav.r_bar  = cable.L_0-0.3;
 xu_rel_bar  = 0.8*cable.L_0*cos(uav.alpha_bar_0);
 uav.r_min = (uav.z_bar-water.H)-0.2; % minimum allowed radial position (m)
 
-uav.X0 = buoy.X0 + [3/7 0 3/7]*cable.L_0; % make alpha_ref_0 = 45.297 deg
+uav.r_0 = 0.5*cable.L_0;
+uav.alpha_0 = pi/4;
+uav.phi_0 = 0;
+
+% uav.X0 = buoy.X0 + [3/7 0 3/7]*cable.L_0; % make alpha_ref_0 = 45.297 deg
+% uav.r_0 = sqrt( (buoy.X0(1) - uav.X0(1))^2 +(buoy.X0(2) - uav.X0(2))^2 + (buoy.X0(3) - uav.X0(3))^2 );
+% uav.phi_0 = atan2(uav.X0(2)-buoy.X0(2) , uav.X0(1)-buoy.X0(1))
+
+uav.X0 = buoy.X0 + uav.r_0*[cos(uav.alpha_0)*cos(uav.phi_0);...
+                cos(uav.alpha_0)*sin(uav.phi_0);sin(uav.alpha_0)];
 uav.V0 = buoy.V0;
-uav.r_0 = sqrt( (buoy.X0(1) - uav.X0(1))^2 +(buoy.X0(2) - uav.X0(2))^2 + (buoy.X0(3) - uav.X0(3))^2 );
 
-%% Tension and azimuth control:
-kp_a = 9.6; % 10 12
-kd_a = 5.6; % 10 7
-ki_a = 1.6;
-kp_T = 25;
-kd_T = 0.0;
-ki_T = 12;
-
-kp_r = 45;
-kd_r = 19.5; % 7
-ki_r = 9;  % 3
-
-% PID controller:
-kp_z = 3;
-kd_z = 2;
-ki_z = 1;
-% Outer Loop (Forward/Backward) Controller
-kp_x = 7;
-kd_x = 5; % 5
-ki_x = 1.2; 
-
-epsilon_e_u1 = 0.05; %minimum control error to switch the controller (N). 
 %% quadrotor UAV:
 
 uav.J = diag([0.03,0.03,0.04]);              % moment of inertia (kg.m2)
@@ -158,8 +146,8 @@ elseif uav.n_motors == 6
     uav.torque_corr = 2*cosd(60)+1;
 end
 
-uav.euler0 = [0,0,0]; %10*pi/180;
-Theta_mean = 0*atan2(V_bar*D_x*cos(alpha_bar_0),V_bar*D_x*sin(alpha_bar_0)+uav.m*g*cos(alpha_bar_0));%10*pi/180;
+uav.euler_0 = [0,0,uav.phi_0]; %10*pi/180;
+Theta_mean = 0*atan2(V_bar*D_x*cos(uav.alpha_bar_0),V_bar*D_x*sin(uav.alpha_bar_0)+uav.m*g*cos(uav.alpha_bar_0));%10*pi/180;
 
 Tm = 1/20; % motor and rotor time constant (s)
 
@@ -180,24 +168,54 @@ rho_a = 1.225;             % air density (kg/m^3)
 Cd_u = 0.2;               
 % Ac = [0.0331 0.0331 0.05]; % Cross section area of the quadrotor in x and z direction (m^2)
 Ac = 0.0331;
-F_d_max_u = Cd_u*(0.5*rho_a*V_bar^2)*Ac
-% Gains:
+F_d_max_u = Cd_u*(0.5*rho_a*V_bar^2)*Ac;
 
+%% Tension and azimuth control:
+controller.dV_max = 2;
+controller.dpsi_V_max = 20*pi/180;
+
+controller.bounds.e_r_max = 2;
+controller.bounds.e_r_dot_max = 2/0.02;
+controller.bounds.e_alpha_dc_max = 7*pi/180;
+controller.bounds.e_alpha_dot_dc_max = 7*pi/180/0.02;
+controller.bounds.e_phi_dc_max = 20*pi/180;
+controller.bounds.e_phi_dot_dc_max = 20*pi/180/0.02;
+
+controller.gains.alpha.kp = 9.6; % 10 12
+controller.gains.alpha.kd = 5.6; % 10 7
+controller.gains.alpha.ki = 1.6;
+
+controller.gains.phi.kp = 9.6; % 10 12
+controller.gains.phi.kd = 5.6; % 10 7
+controller.gains.phi.ki = 1.6;
+
+controller.gains.xy.kp = 25; % 
+controller.gains.xy.kd = 0; % 
+controller.gains.xy.ki = 12;
+
+
+controller.gains.r.kp = 45;
+controller.gains.r.kd = 19.5; % 7
+controller.gains.r.ki = 9;  % 3
+
+epsilon_e_u1 = 0.05; %minimum control error to switch the controller (N). 
+
+%% UAV control Gains:
 %
 uav.kp_1 = 20; %k1 = 0.3  100
 uav.kd_1 = 10;%k2 = 30   35
 uav.ki_1 = 0.4;
 
-% X:  
-%k1 = 3.3; 
-%k2 = 0.58; 
+% X:
+%k1 = 3.3;
+%k2 = 0.58;
 uav.kp_2 = 20; %k1 = 0.3  100
 uav.kd_2 = 10;%k2 = 30   35
 uav.ki_2=0.4;
 % dc_M_x=0.3;
-% Pitch: 
+% Pitch:
 k3 = 24;%30; 4.5
-k4 = 0.8;% 0.3;   2 
+k4 = 0.8;% 0.3;   2
 gamma_d_p=(2*0.3/0.03*2*0.2*12/4)/10; %k1=14.6
 dc_M_p=6.7;
 
@@ -307,16 +325,16 @@ estimation();
 
 %%
 V_bar0 = 20.8;
-epsilon_1 = 5;        % cable tension lower bound (N)
-epsilon_2 = 0.05*buoy.Vol;
+tolerences.epsilon_1 = 5;        % cable tension lower bound (N)
+tolerences.epsilon_2 = 0.05*buoy.Vol;
 A_whetted =  buoy.l*buoy.h + 2*buoy.l*(buoy.h/4) % average
 D_from_C = A_whetted*V_bar0*0.5*rho_w*C_S(1)
 v_x_w_max = wave1.omega*wave1.A;
 T_bar0 = D_from_C*V_bar0/cos(alpha_bar)
 
 
-V_min = epsilon_1*cosd(alpha_bar)/D_from_C + current.total + v_x_w_max
-V_max = (buoy.m + uav.m - epsilon_2*rho_w)*g*tan(uav.euler0(2))...
+V_min = tolerences.epsilon_1*cosd(alpha_bar)/D_from_C + current.total + v_x_w_max
+V_max = (buoy.m + uav.m - tolerences.epsilon_2*rho_w)*g*tan(uav.euler_0(2))...
             /D_from_C+current.total+u_w+u_s1_x+abs(v_x_w)
 
 %% Frequency analysys:
