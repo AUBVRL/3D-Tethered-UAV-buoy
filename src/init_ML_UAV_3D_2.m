@@ -16,8 +16,8 @@ T_init = 10;            % time before velocity control starts (s)
 %       fully developped, H =3.3  m, T = 8.0 s
 % Wiki: fully developped, H =4.1  m, T = 8.6 s
 % Wiki: Interpolate: H =2 m, T = 6.3 s
-nu_w = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
-H = 10;               % mean water level (m)
+water.nu = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
+water.H = 10;               % mean water level (m)
 
 % All waves in vector form:
 wave.A = [1*3.3 ; 1*1.2]/2;          % wave height (m)
@@ -28,43 +28,9 @@ wave.epsilon = [0 ; 0]*2*pi;        % random phase angle (rad)
 wave.speed = wave.omega./wave.k;    % wave speed (m/s)
 wave.lambda = wave.speed.*wave.T;   % wave length (m)
 wave.psi = [0; 0];           % wave direction ([0 2pi] rad)
-% wave 1 (to be removed)
-wave1.A = 1*3.3/2;          % wave height (m)
-wave1.T = 8;            % wave period (s)
-wave1.omega = 2*pi/wave1.T;   % wave circular frequency (rad/s)
-wave1.k = wave1.omega^2/g;    % wave number (rad/m)
-wave1.epsilon = pi/2;        % random phase angle (rad)
-wave1.speed = wave1.omega/wave1.k;    % wave speed (m/s)
-wave1.lambda = wave1.speed*wave1.T;   % wave length (m)
-wave1.psi = 0;           % wave direction ([0 2pi] rad)
-% wave 2 (to be removed)
-wave2.A = 1*1.2/2;          % wave height (m)
-wave2.T = 5;            % wave period (s)
-wave2.omega = 2*pi/wave2.T;   % wave circular frequency (rad/s)
-wave2.k = wave2.omega^2/g;    % wave number (rad/m)
-wave2.epsilon = pi;        % random phase angle (rad)
-wave2.speed = wave2.omega/wave2.k;    % wave speed (m/s)
-wave2.lambda = wave2.speed*wave2.T;   % wave length (m)
-wave2.psi = 0;           % wave direction ([0 2pi] rad)
-%
-%
-% A_w2 = 1*2.4/2;        % wave height (m)
-% w_dir2 = -1;           % wave direction (1 for 0 deg, -1 for 180 deg)
-% T_w2 = 7;            % wave period (s)
-% omega_w2 = 2*pi/T_w2;   % wave circular frequency (rad/s)
-% k_w2 = omega_w2^2/g;    % wave number (rad/m)
-% epsilon_w2 = pi;        % random phase angle (rad)
-%
-% A_w2 = 1*3.3/2;        % wave height (m)
-% w_dir2 = -1;           % wave direction (1 for 0 deg, -1 for 180 deg)
-% T_w2 = 8;            % wave period (s)
-% omega_w2 = 2*pi/T_w2;   % wave circular frequency (rad/s)
-% k_w2 = omega_w2^2/g;    % wave number (rad/m)
-% epsilon_w2 = pi;        % random phase angle (rad)
-
+wave.StocksDrift = wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-0.1/2)); % stocks drift (m/s)
 
 %% Water Current:
-beta = 0;
 current.tidal = -1*0.5*1;      % tidal current component (m/s)
 current.wind  = 0*0.2;         % local wind current component (m/s)
 current.beta = 0;
@@ -106,24 +72,22 @@ buoy.J = [buoy.m*buoy.h^2/12, buoy.m*buoy.h*buoy.l/12, buoy.m*buoy.h*buoy.l/12 ]
 buoy.A_im = (buoy.m)/rho_w/buoy.l; % immersed frontal area (m^2) (different from whetted area)
 buoy.Delta_h = (buoy.A_im/buoy.A-0.5)*buoy.h; % z_b-zeta, buoy center above water surface 
 
-u_s1_x = cos(wave1.psi)*wave1.A^2*wave1.omega*wave1.k*exp(2*wave1.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
-u_s1_y = sin(wave1.psi)*wave1.A^2*wave1.omega*wave1.k*exp(2*wave1.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
+% u_s1_x = cos(wave1.psi)*wave1.A^2*wave1.omega*wave1.k*exp(2*wave1.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
+% u_s1_y = sin(wave1.psi)*wave1.A^2*wave1.omega*wave1.k*exp(2*wave1.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
+% 
+% u_s2_x = cos(wave2.psi)*wave2.A^2*wave2.omega*wave2.k*exp(2*wave2.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
+% u_s2_y = sin(wave2.psi)*wave2.A^2*wave2.omega*wave2.k*exp(2*wave2.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
 
-u_s2_x = cos(wave2.psi)*wave2.A^2*wave2.omega*wave2.k*exp(2*wave2.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
-u_s2_y = sin(wave2.psi)*wave2.A^2*wave2.omega*wave2.k*exp(2*wave2.k*(-buoy.Delta_h/2)); % stocks drift (m/s)
+%u_s = cos(wave.psi).*wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-buoy.Delta_h/2)); % stocks drift (m/s)
+%v_s = sin(wave.psi).*wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-buoy.Delta_h/2)); % stocks drift (m/s)
 
-X0_b = [0,0,H-buoy.Delta_h];
+buoy.X0 = [0,0,water.H-buoy.Delta_h];
 % buoy initial velocity simillar as local wave velocity
-u_w1 = cos(wave1.psi)*wave1.omega*wave1.A*sin(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon);
-v_w1 = sin(wave1.psi)*wave1.omega*wave1.A*sin(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon);
-w_w1 =             wave1.omega*wave1.A*cos(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon); % ???stocks drift (m/s)
-u_w2 = cos(wave1.psi)*wave1.omega*wave1.A*sin(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon);
-v_w2 = sin(wave1.psi)*wave1.omega*wave1.A*sin(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon);
-w_w2 =                wave1.omega*wave1.A*cos(-wave1.k*X0_b(1)*cos(wave1.psi)-wave1.k*X0_b(2)*sin(wave1.psi)+wave1.epsilon); % ???stocks drift (m/s)
-u_w = u_w1 + u_w2;
-v_w = v_w1 + v_w2;
-w_w = w_w1 + w_w2;
-V0_b = [current.u+u_w,current.v+v_w, w_w].*[1 1 1]; % check for correctness (body frame or inertial frame?)
+wave.u0 = cos(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon);
+wave.v0 = sin(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon);
+wave.w0 =                wave.omega.*wave.A.*cos(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon); 
+
+buoy.V0 = [current.u+wave.u0,current.v+wave.v0, wave.w0].*[1 1 1]; % check for correctness (body frame or inertial frame?)
 
 %Cd_f =3; % drag
 %drag_wave = 0.3; % wave lateral drag force (N)
@@ -133,7 +97,7 @@ buoy.a_22 = buoy.a_11;
 buoy.a_33 = buoy.m;
 buoy.b_11 = 0;               % added dampind
 buoy.b_22 = 0;               % added dampind
-omega_h = wave1.omega;
+omega_h = wave.omega;
 buoy.b_33 = 2*buoy.m*omega_h;   
 
 C_S = [5;5;9]*10^-3;       % skin friction constant
@@ -143,21 +107,21 @@ D_x = buoy.b_22 + D_s(2);
 D_z = buoy.b_33 + D_s(3);
 
 %% Cable:
-Lc_0 = 7;  % 7-12              % Cable free length (m)
-dL_max = 0.0;            % maximum cable elongation (m)
-T_max = 80;              % max cable tension (N)
-Kc = T_max/dL_max;       % Cable spring constant (N/m)
+cable.L_0 = 7;  % 7-12              % Cable free length (m)
+cable.dL_max = 0.0;            % maximum cable elongation (m)
+cable.T_max = 80;              % max cable tension (N)
+cable.Kc = cable.T_max/cable.dL_max;       % Cable spring constant (N/m)
 
-alpha_bar_0 = 45*(pi/180);
+uav.alpha_bar_0 = 45*(pi/180);
 %zq_bar = X0_b(2) + Lc_0*tan(alpha_bar_0)*sqrt(1-cos(alpha_bar_0)^2)
-zu_bar = X0_b(2) + Lc_0*sin(alpha_bar_0);
-r_bar  = Lc_0-0.3;
-xu_rel_bar  = 0.8*Lc_0*cos(alpha_bar_0);
-r_min = (zu_bar-H)-0.2; % minimum allowed radial position (m)
+uav.z_bar = buoy.X0(3) + cable.L_0*sin(uav.alpha_bar_0);
+uav.r_bar  = cable.L_0-0.3;
+xu_rel_bar  = 0.8*cable.L_0*cos(uav.alpha_bar_0);
+uav.r_min = (uav.z_bar-water.H)-0.2; % minimum allowed radial position (m)
 
-X0_u = X0_b + [3/7 0 3/7]*Lc_0; % make alpha_ref_0 = 45.297 deg
-V0_u = V0_b;
-r_0 = sqrt( (X0_b(1) - X0_u(1))^2 +(X0_b(2) - X0_u(2))^2 + (X0_b(2) - X0_u(2))^2 );
+uav.X0 = buoy.X0 + [3/7 0 3/7]*cable.L_0; % make alpha_ref_0 = 45.297 deg
+uav.V0 = buoy.V0;
+uav.r_0 = sqrt( (buoy.X0(1) - uav.X0(1))^2 +(buoy.X0(2) - uav.X0(2))^2 + (buoy.X0(3) - uav.X0(3))^2 );
 
 %% Tension and azimuth control:
 kp_a = 9.6; % 10 12
