@@ -22,7 +22,7 @@ water.nu = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
 water.H = 10;               % mean water level (m)
 
 % All waves in vector form:
-wave.A = [1*3.3 ; 1*1.2]/2;          % wave height (m)
+wave.A = 0*[1*3.3 ; 1*1.2]/2;          % wave height (m)
 wave.T = [8 ; 5];            % wave period (s)
 wave.omega = 2*pi./wave.T;   % wave circular frequency (rad/s)
 wave.k = wave.omega.^2./g;    % wave number (rad/m)
@@ -162,13 +162,13 @@ uav.LIMIT_uCMD_HEIGHT = 0.9*uav.n_motors*uav.K; % 3.5*K
 uav.LIMIT_CMD_x = 3;
 
 % Aerodynamics:
-V_w = [-3 0 0];                 % wind velocity [m/2]
-rho_a = 1.225;             % air density (kg/m^3)
+air.V_wind = 0*[-3 0 0];                 % wind velocity [m/2]
+air.rho = 1.225;             % air density (kg/m^3)
 % drag coefficient: square:1.05, sphere: 0.47, airfoil: 0.04
 Cd_u = 0.2;               
 % Ac = [0.0331 0.0331 0.05]; % Cross section area of the quadrotor in x and z direction (m^2)
 Ac = 0.0331;
-F_d_max_u = Cd_u*(0.5*rho_a*V_bar^2)*Ac;
+F_d_max_u = Cd_u*(0.5*air.rho*V_bar^2)*Ac;
 
 %% Tension and azimuth control:
 controller.dV_max = 2;
