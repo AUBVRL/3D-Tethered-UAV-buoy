@@ -88,7 +88,7 @@ wave.u0 = cos(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.p
 wave.v0 = sin(wave.psi).*wave.omega.*wave.A.*sin(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon);
 wave.w0 =                wave.omega.*wave.A.*cos(-wave.k.*buoy.X0(1).*cos(wave.psi)-wave.k.*buoy.X0(2).*sin(wave.psi)+wave.epsilon); 
 
-buoy.V0 = [current.u+wave.u0;current.v+wave.v0; wave.w0].*[1 1 1]; % check for correctness (body frame or inertial frame?)
+buoy.V0 = [current.u+sum(wave.u0);current.v+sum(wave.v0); sum(wave.w0)].*[1;1;1]; % check for correctness (body frame or inertial frame?)
 
 %Cd_f =3; % drag
 %drag_wave = 0.3; % wave lateral drag force (N)
@@ -99,7 +99,7 @@ buoy.a_33 = buoy.m;
 buoy.b_11 = 0;               % added dampind
 buoy.b_22 = 0;               % added dampind
 omega_h = wave.omega;
-buoy.b_33 = 2*buoy.m*omega_h;   
+buoy.b_33 = 2*buoy.m*mean(omega_h);   
 
 C_S = [5;5;9]*10^-3;       % skin friction constant
 D_s = [4;4;0.3*3];         % sfkin friction coefficient (viscous)
@@ -146,7 +146,7 @@ elseif uav.n_motors == 6
     uav.torque_corr = 2*cosd(60)+1;
 end
 
-uav.euler_0 = [0,0,uav.phi_0]; %10*pi/180;
+uav.euler_0 = [0;0;uav.phi_0]; %10*pi/180;
 Theta_mean = 0*atan2(V_bar*D_x*cos(uav.alpha_bar_0),V_bar*D_x*sin(uav.alpha_bar_0)+uav.m*g*cos(uav.alpha_bar_0));%10*pi/180;
 
 Tm = 1/20; % motor and rotor time constant (s)
@@ -157,9 +157,9 @@ Tm = 1/20; % motor and rotor time constant (s)
 % Limits
 %Xu_min= [-30 H];        % Window dimensions: min borders
 %Xu_max= [30 20];        % Window dimensions: max borders
-LIMIT_CMD_PITCH = 45*pi/180;
-LIMIT_uCMD_HEIGHT = 0.9*uav.n_motors*uav.K; % 3.5*K
-LIMIT_CMD_x = 3;
+uav.LIMIT_CMD_PITCH = 45*pi/180;
+uav.LIMIT_uCMD_HEIGHT = 0.9*uav.n_motors*uav.K; % 3.5*K
+uav.LIMIT_CMD_x = 3;
 
 % Aerodynamics:
 V_w = [-3 0 0];                 % wind velocity [m/2]
@@ -323,47 +323,47 @@ Bm_fast_coup_LPF = sysd.numerator{1};
 %% estimator filters:
 estimation();
 
-%%
-V_bar0 = 20.8;
+%% Velocity Bounds:
+% V_bar0 = 20.8;
 tolerences.epsilon_1 = 5;        % cable tension lower bound (N)
 tolerences.epsilon_2 = 0.05*buoy.Vol;
-A_whetted =  buoy.l*buoy.h + 2*buoy.l*(buoy.h/4) % average
-D_from_C = A_whetted*V_bar0*0.5*rho_w*C_S(1)
-v_x_w_max = wave1.omega*wave1.A;
-T_bar0 = D_from_C*V_bar0/cos(alpha_bar)
-
-
-V_min = tolerences.epsilon_1*cosd(alpha_bar)/D_from_C + current.total + v_x_w_max
-V_max = (buoy.m + uav.m - tolerences.epsilon_2*rho_w)*g*tan(uav.euler_0(2))...
-            /D_from_C+current.total+u_w+u_s1_x+abs(v_x_w)
+% A_whetted =  buoy.l*buoy.h + 2*buoy.l*(buoy.h/4) % average
+% D_from_C = A_whetted*V_bar0*0.5*water.rho*C_S(1)
+% v_x_w_max = wave.omega*wave.A;
+% T_bar0 = D_from_C*V_bar0/cos(alpha_bar)
+% 
+% 
+% V_min = tolerences.epsilon_1*cosd(alpha_bar)/D_from_C + current.total + v_x_w_max
+% V_max = (buoy.m + uav.m - tolerences.epsilon_2*rho_w)*g*tan(uav.euler_0(2))...
+%             /D_from_C+current.total+u_w+u_s1_x+abs(v_x_w)
 
 %% Frequency analysys:
-A_c = l_b*h_b;
-D_z0 = 55;
-V_bar01 = 13;
-V_bar02 = -5;
-
-omega_b = sqrt((rho_w*g*A_c/(m_b+a_33)));
-zeta_b = D_z0/(2*sqrt((m_b+a_33)*rho_w*g*A_c));
-omega_e11 = omega_w - omega_w^2*V_bar01/g*w_dir; % -0.508 1.72
-omega_e12 = omega_w2 - omega_w2^2*V_bar01/g*w_dir; % -0.508 1.72
-
-omega_e21 = omega_w - omega_w^2*V_bar02/g*w_dir; % -0.508 1.72
-omega_e22 = omega_w2 - omega_w2^2*V_bar02/g*w_dir; % -0.508 1.72
-
-Gb_s = tf(omega_b^2,[1 2*zeta_b*omega_b omega_b^2])
-% figure(1)
-% bode(Gb_s)
-% grid on
-i=0;
-for w = 0:0.1:20
-    i = i+1;
-    [mag0,phase,wout] = bode(Gb_s,w); % mag0 is not in dB!
-    mag(i,1) = (mag0); % db2mag(12.1)
-     % 20*log10(2)
-    OMEGA = w/omega_b;
-    mag2(i,1) = (509.7/rho_w*g*A_c)/sqrt((1 - OMEGA^2)^2+(2*zeta_b*OMEGA)^2);
-end
+% A_c = l_b*h_b;
+% D_z0 = 55;
+% V_bar01 = 13;
+% V_bar02 = -5;
+% 
+% omega_b = sqrt((rho_w*g*A_c/(m_b+a_33)));
+% zeta_b = D_z0/(2*sqrt((m_b+a_33)*rho_w*g*A_c));
+% omega_e11 = omega_w - omega_w^2*V_bar01/g*w_dir; % -0.508 1.72
+% omega_e12 = omega_w2 - omega_w2^2*V_bar01/g*w_dir; % -0.508 1.72
+% 
+% omega_e21 = omega_w - omega_w^2*V_bar02/g*w_dir; % -0.508 1.72
+% omega_e22 = omega_w2 - omega_w2^2*V_bar02/g*w_dir; % -0.508 1.72
+% 
+% Gb_s = tf(omega_b^2,[1 2*zeta_b*omega_b omega_b^2])
+% % figure(1)
+% % bode(Gb_s)
+% % grid on
+% i=0;
+% for w = 0:0.1:20
+%     i = i+1;
+%     [mag0,phase,wout] = bode(Gb_s,w); % mag0 is not in dB!
+%     mag(i,1) = (mag0); % db2mag(12.1)
+%      % 20*log10(2)
+%     OMEGA = w/omega_b;
+%     mag2(i,1) = (509.7/rho_w*g*A_c)/sqrt((1 - OMEGA^2)^2+(2*zeta_b*OMEGA)^2);
+% end
 
 % we1_C3 = 0.5; we2_C3 = 3.7; 
 % we1_C4 = 1.7; we2_C4 = 4.3; 
