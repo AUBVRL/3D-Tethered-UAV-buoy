@@ -5,7 +5,7 @@ g = 9.81;               % gravity constant (m/s2)
 %% Initalize:
 alpha_bar = pi/4;       % cable angle
 V_bar = 4;              % desired mean velocity
-eps_V = 0.1;            % velocity margine to switch controller state (m/s).
+eps_V = 0.5;            % velocity margine to switch controller state (m/s).
 T_init = 10;            % time before velocity control starts (s)
 %% Wave characteristics
 % AWTEC 2016: beirut, H = 2*A = 0.3 m, T = 3.5 s
@@ -22,20 +22,20 @@ water.nu = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
 water.H = 10;               % mean water level (m)
 
 % All waves in vector form:
-wave.A = 0*[1*3.3 ; 1*1.2]/2;          % wave height (m)
+wave.A = 1*[0*3.3 ; 1*1.2]/2;          % wave height (m)
 wave.T = [8 ; 5];            % wave period (s)
 wave.omega = 2*pi./wave.T;   % wave circular frequency (rad/s)
 wave.k = wave.omega.^2./g;    % wave number (rad/m)
 wave.epsilon = [0 ; 0]*2*pi;        % random phase angle (rad)
 wave.speed = wave.omega./wave.k;    % wave speed (m/s)
 wave.lambda = wave.speed.*wave.T;   % wave length (m)
-wave.psi = [0; 0];           % wave direction ([0 2pi] rad)
+wave.psi = [0; 0]*pi;           % wave direction ([0 2pi] rad)
 wave.StocksDrift = wave.A.^2.*wave.omega.*wave.k.*exp(2*wave.k.*(-0.1/2)); % stocks drift (m/s)
 
 %% Water Current:
 current.tidal = -1*0.5*1;      % tidal current component (m/s)
 current.wind  = 0*0.2;         % local wind current component (m/s)
-current.beta = 0;
+current.beta = 0 + wave.psi(1)*1;
 current.total = current.tidal + current.wind;
 current.u = current.total*cos(current.beta);
 current.v = current.total*sin(current.beta);
@@ -122,8 +122,8 @@ xu_rel_bar  = 0.8*cable.L_0*cos(uav.alpha_bar_0);
 uav.r_min = (uav.z_bar-water.H)-0.2; % minimum allowed radial position (m)
 
 uav.r_0 = 0.5*cable.L_0;
-uav.alpha_0 = pi/4;
-uav.phi_0 = 0;
+uav.alpha_0 = pi/4;   % cable elevation angle
+uav.phi_0 = 0 + 0*pi/4; % cable azimuth
 
 % uav.X0 = buoy.X0 + [3/7 0 3/7]*cable.L_0; % make alpha_ref_0 = 45.297 deg
 % uav.r_0 = sqrt( (buoy.X0(1) - uav.X0(1))^2 +(buoy.X0(2) - uav.X0(2))^2 + (buoy.X0(3) - uav.X0(3))^2 );
@@ -146,7 +146,7 @@ elseif uav.n_motors == 6
     uav.torque_corr = 2*cosd(60)+1;
 end
 
-uav.euler_0 = [0;0;uav.phi_0]; %10*pi/180;
+uav.euler_0 = [0;0;uav.phi_0*0+1*pi/4]; %10*pi/180;
 Theta_mean = 0*atan2(V_bar*D_x*cos(uav.alpha_bar_0),V_bar*D_x*sin(uav.alpha_bar_0)+uav.m*g*cos(uav.alpha_bar_0));%10*pi/180;
 
 Tm = 1/20; % motor and rotor time constant (s)
@@ -172,7 +172,7 @@ F_d_max_u = Cd_u*(0.5*air.rho*V_bar^2)*Ac;
 
 %% Tension and azimuth control:
 controller.dV_max = 2;
-controller.dpsi_V_max = 20*pi/180;
+controller.dpsi_V_max = 5*pi/180;
 
 controller.bounds.e_r_max = 2;
 controller.bounds.e_r_dot_max = 2/0.02;
@@ -193,10 +193,14 @@ controller.gains.xy.kp = 25; %
 controller.gains.xy.kd = 0; % 
 controller.gains.xy.ki = 12;
 
-
 controller.gains.r.kp = 45;
 controller.gains.r.kd = 19.5; % 7
 controller.gains.r.ki = 9;  % 3
+
+% Outer Loop (Forward/Backward) Controller
+controller.gains.V.kp = 7;
+controller.gains.V.kd = 5; % 5
+controller.gains.V.ki = 1.2; 
 
 epsilon_e_u1 = 0.05; %minimum control error to switch the controller (N). 
 
@@ -266,6 +270,13 @@ sys=tf(1,conv([3 1],conv([3 1],[3 1]))); % 2 5 3
 sysd = c2d(sys,Ts);
 AmV_LPF = sysd.denominator{1};
 BmV_LPF = sysd.numerator{1};
+
+% psi_V_bar filter
+
+sys=tf(1,conv([10 1],conv([10 1],[10 1]))); % 2 5 3
+sysd = c2d(sys,Ts);
+AmPsiV_LPF = sysd.denominator{1};
+BmPsiV_LPF = sysd.numerator{1};
 
 % alpha_dot filter
 sys=tf(1,conv([1/5 1],[1/5 1]));
