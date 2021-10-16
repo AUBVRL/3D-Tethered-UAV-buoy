@@ -22,7 +22,7 @@ water.nu = 1.787*10^-6;   % kinematic viscosity of water (m2/s)
 water.H = 10;               % mean water level (m)
 
 % All waves in vector form:
-wave.A = 1*[0*3.3 ; 1*1.2]/2;          % wave height (m)
+wave.A = 0*[0*3.3 ; 1*1.2]/2;          % wave height (m)
 wave.T = [8 ; 5];            % wave period (s)
 wave.omega = 2*pi./wave.T;   % wave circular frequency (rad/s)
 wave.k = wave.omega.^2./g;    % wave number (rad/m)
@@ -193,6 +193,14 @@ controller.gains.xy.kp = 25; %
 controller.gains.xy.kd = 0; % 
 controller.gains.xy.ki = 12;
 
+controller.gains.nux.kp = 25; % 
+controller.gains.nux.kd = 0; % 
+controller.gains.nux.ki = 12;
+
+controller.gains.nuy.kp = 5; % 
+controller.gains.nuy.kd = 3; % 
+controller.gains.nuy.ki = 2;
+
 controller.gains.r.kp = 45;
 controller.gains.r.kd = 19.5; % 7
 controller.gains.r.ki = 9;  % 3
@@ -230,8 +238,8 @@ uav.ki_3=0.4/2;
 %motors discrete transfer function:
 sys=tf(1,[Tm 1]);
 sysd = c2d(sys,Ts);
-Am = sysd.denominator{1};
-Bm = sysd.numerator{1};
+filters.Am = sysd.denominator{1};
+filters.Bm = sysd.numerator{1};
 
 %% Filters:
 
@@ -245,92 +253,94 @@ min_sf_rp = 0.35*uav.m*g; % lower bound of the smoothing function
 
 % Low pass filter:
 
-A_1df = [1/40 1];                   % filter for 1 derivative
-A_2df = conv([1/40 1],[1/60 1]);    % filter for 2 derivatives
+% A_1df = [1/40 1];                   % filter for 1 derivative
+% A_2df = conv([1/40 1],[1/60 1]);    % filter for 2 derivatives
 
-sys=tf(1,A_1df);
+sys=tf(1,[1/40 1]);
 sysd = c2d(sys,Ts);
-Am1_LPF = sysd.denominator{1};
-Bm1_LPF = sysd.numerator{1};
+filters.Am1_LPF = sysd.denominator{1};
+filters.Bm1_LPF = sysd.numerator{1};
 
-sys=tf(1,A_2df);
+sys=tf(1,conv([1/40 1],[1/60 1]));
 sysd = c2d(sys,Ts);
-Am2_LPF = sysd.denominator{1};
-Bm2_LPF = sysd.numerator{1};
+filters.Am2_LPF = sysd.denominator{1};
+filters.Bm2_LPF = sysd.numerator{1};
 
 % Z filter
 sys=tf(1,conv([1/20 1],[1/20 1]));
 sysd = c2d(sys,Ts);
-AmZ_LPF = sysd.denominator{1};
-BmZ_LPF = sysd.numerator{1};
+filters.AmZ_LPF = sysd.denominator{1};
+filters.BmZ_LPF = sysd.numerator{1};
 
 % V_bar filter
 
 sys=tf(1,conv([3 1],conv([3 1],[3 1]))); % 2 5 3
 sysd = c2d(sys,Ts);
-AmV_LPF = sysd.denominator{1};
-BmV_LPF = sysd.numerator{1};
+filters.AmV_LPF = sysd.denominator{1};
+filters.BmV_LPF = sysd.numerator{1};
 
 % psi_V_bar filter
 
 sys=tf(1,conv([10 1],conv([10 1],[10 1]))); % 2 5 3
 sysd = c2d(sys,Ts);
-AmPsiV_LPF = sysd.denominator{1};
-BmPsiV_LPF = sysd.numerator{1};
+filters.AmPsiV_LPF = sysd.denominator{1};
+filters.BmPsiV_LPF = sysd.numerator{1};
 
 % alpha_dot filter
 sys=tf(1,conv([1/5 1],[1/5 1]));
 sysd = c2d(sys,Ts);
-AmAlpha_LPF = sysd.denominator{1};
-BmAlpha_LPF = sysd.numerator{1};
+filters.AmAlpha_LPF = sysd.denominator{1};
+filters.BmAlpha_LPF = sysd.numerator{1};
 
 % r_ref filter
 sys=tf(1,conv(conv([0.5 1],[0.5 1]),conv([0.5 1],[0.5 1])));
 sysd = c2d(sys,Ts);
-Am_rref_LPF = sysd.denominator{1};
-Bm_rref_LPF = sysd.numerator{1};
+filters.Am_rref_LPF = sysd.denominator{1};
+filters.Bm_rref_LPF = sysd.numerator{1};
 % r_ref 20 filter
 sys=tf(1,conv(conv([0.3 1],[0.3 1]),conv([0.3 1],[0.3 1])));
 sysd = c2d(sys,Ts);
-Am_rref20_LPF = sysd.denominator{1};
-Bm_rref20_LPF = sysd.numerator{1};
+filters.Am_rref20_LPF = sysd.denominator{1};
+filters.Bm_rref20_LPF = sysd.numerator{1};
 
 % r during L hit filter
 sys=tf(1,conv(conv([0.05 1],[0.05 1]),conv([0.05 1],[0.05 1])));
 sysd = c2d(sys,Ts);
-Am_reL_LPF = sysd.denominator{1};
-Bm_reL_LPF = sysd.numerator{1};
+filters.Am_reL_LPF = sysd.denominator{1};
+filters.Bm_reL_LPF = sysd.numerator{1};
 
 % rdot during L hit filter
 sys=tf(1,conv(conv([0.005 1],[0.005 1]),conv([0.005 1],[0.005 1])));
 sysd = c2d(sys,Ts);
-Am_rdeL_LPF = sysd.denominator{1};
-Bm_rdeL_LPF = sysd.numerator{1};
+filters.Am_rdeL_LPF = sysd.denominator{1};
+filters.Bm_rdeL_LPF = sysd.numerator{1};
 
 % alpha switch filter
 sys=tf(1,conv(conv([1.2 1],[1.2 1]),conv([1.2 1],[1.2 1])));
 sysd = c2d(sys,Ts);
-Am_asw_LPF = sysd.denominator{1};
-Bm_asw_LPF = sysd.numerator{1};
+filters.Am_asw_LPF = sysd.denominator{1};
+filters.Bm_asw_LPF = sysd.numerator{1};
 
 % alpha switch smoothing filter
 % sys=tf(1,conv([1 0],conv(conv([0.5 1],[0.5 1]),conv([0.5 1],[0.5 1]))));
 sys=tf(1,conv(conv([0.15 1],[0.15 1]),conv([0.15 1],[0.15 1])));
 sysd = c2d(sys,Ts);
-Am_assw_LPF = sysd.denominator{1};
-Bm_assw_LPF = sysd.numerator{1};
+filters.Am_assw_LPF = sysd.denominator{1};
+filters.Bm_assw_LPF = sysd.numerator{1};
 
 % coupled filter
 sys=tf(1,conv([0.1 1],[0.1 1]));
 sysd = c2d(sys,Ts);
-Am_coup_LPF = sysd.denominator{1};
-Bm_coup_LPF = sysd.numerator{1};
+filters.Am_coup_LPF = sysd.denominator{1};
+filters.Bm_coup_LPF = sysd.numerator{1};
 
 % fast coupled filter
 sys=tf(1,conv([0.01 1],[0.01 1]));
 sysd = c2d(sys,Ts);
-Am_fast_coup_LPF = sysd.denominator{1};
-Bm_fast_coup_LPF = sysd.numerator{1};
+filters.Am_fast_coup_LPF = sysd.denominator{1};
+filters.Bm_fast_coup_LPF = sysd.numerator{1};
+
+clear sys sysd
 %% estimator filters:
 estimation();
 
