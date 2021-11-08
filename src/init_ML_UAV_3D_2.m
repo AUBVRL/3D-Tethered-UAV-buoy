@@ -101,11 +101,11 @@ buoy.b_22 = 0;               % added dampind
 omega_h = wave.omega;
 buoy.b_33 = 2*buoy.m*mean(omega_h);   
 
-C_S = [5;5;9]*10^-3;       % skin friction constant
-D_s = [4;4;0.3*3];         % sfkin friction coefficient (viscous)
-D_x = buoy.b_11 + D_s(1);     % total drag coefficient
-D_y = buoy.b_22 + D_s(2);    
-D_z = buoy.b_33 + D_s(3);
+buoy.C_S = [5;5;9]*10^-3;       % skin friction constant
+buoy.D_s = [4;4;0.3*3];         % sfkin friction coefficient (viscous)
+buoy.D_x = buoy.b_11 + buoy.D_s(1);     % total drag coefficient
+buoy.D_y = buoy.b_22 + buoy.D_s(2);    
+buoy.D_z = buoy.b_33 + buoy.D_s(3);
 
 %% Cable:
 cable.L_0 = 7;  % 7-12              % Cable free length (m)
@@ -138,6 +138,7 @@ uav.V0 = buoy.V0;
 uav.J = diag([0.03,0.03,0.04]);              % moment of inertia (kg.m2)
 uav.m = 1.8  ;             % quadcopter mass (kg)  1.634
 uav.K = 40; % 20                  % motors maximum thrust,each (N) % 20 40
+uav.Kq = 4; % 20                  % motors torque constant,each (N.m) % 
 uav.n_motors = 4;            % number of motors
 uav.L = 0.2;                 % qadrotor arm length (m)
 if uav.n_motors == 4
@@ -146,8 +147,9 @@ elseif uav.n_motors == 6
     uav.torque_corr = 2*cosd(60)+1;
 end
 
+uav.D_2 = diag([0,0,0]);
 uav.euler_0 = [0;0;uav.phi_0*0+1*pi/4]; %10*pi/180;
-Theta_mean = 0*atan2(V_bar*D_x*cos(uav.alpha_bar_0),V_bar*D_x*sin(uav.alpha_bar_0)+uav.m*g*cos(uav.alpha_bar_0));%10*pi/180;
+Theta_mean = 0*atan2(V_bar*buoy.D_x*cos(uav.alpha_bar_0),V_bar*buoy.D_x*sin(uav.alpha_bar_0)+uav.m*g*cos(uav.alpha_bar_0));%10*pi/180;
 
 Tm = 1/20; % motor and rotor time constant (s)
 
@@ -165,10 +167,10 @@ uav.LIMIT_CMD_x = 3;
 air.V_wind = 0*[-3 0 0];                 % wind velocity [m/2]
 air.rho = 1.225;             % air density (kg/m^3)
 % drag coefficient: square:1.05, sphere: 0.47, airfoil: 0.04
-Cd_u = 0.2;               
+uav.Cd_u = 0.2;               
 % Ac = [0.0331 0.0331 0.05]; % Cross section area of the quadrotor in x and z direction (m^2)
-Ac = 0.0331;
-F_d_max_u = Cd_u*(0.5*air.rho*V_bar^2)*Ac;
+uav.Ac = 0.0331;
+uav.F_d_max_u = uav.Cd_u*(0.5*air.rho*V_bar^2)*uav.Ac;
 
 %% Tension and azimuth control:
 controller.dV_max = 2;
@@ -226,10 +228,10 @@ uav.kd_2 = 10;%k2 = 30   35
 uav.ki_2=0.4;
 % dc_M_x=0.3;
 % Pitch:
-k3 = 24;%30; 4.5
-k4 = 0.8;% 0.3;   2
-gamma_d_p=(2*0.3/0.03*2*0.2*12/4)/10; %k1=14.6
-dc_M_p=6.7;
+% k3 = 24;%30; 4.5
+% k4 = 0.8;% 0.3;   2
+% gamma_d_p=(2*0.3/0.03*2*0.2*12/4)/10; %k1=14.6
+% dc_M_p=6.7;
 
 %
 uav.kp_3 = 20/2; %k1 = 0.3  100
@@ -281,7 +283,7 @@ filters.BmV_LPF = sysd.numerator{1};
 
 % psi_V_bar filter
 
-sys=tf(1,conv([10 1],conv([10 1],[10 1]))); % 2 5 3
+sys=tf(1,conv([8 1],conv([8 1],[8 1]))); % 2 5 3
 sysd = c2d(sys,Ts);
 filters.AmPsiV_LPF = sysd.denominator{1};
 filters.BmPsiV_LPF = sysd.numerator{1};
